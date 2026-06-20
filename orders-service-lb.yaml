@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders-service-lb
+  labels:
+    app: orders-service
+spec:
+  type: LoadBalancer       # al aplicarlo, AWS crea un balanceador publico (ELB)
+  selector:
+    app: orders-service    # apunta a los pods de orders-service
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80             # puerto publico
+      targetPort: 8003     # puerto del contenedor
