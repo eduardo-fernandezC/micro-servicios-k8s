@@ -16,32 +16,30 @@ spec:
     spec:
       containers:
         - name: orders-service
-          # Reemplazar <ACCOUNT_ID> y <REGION> tras el push a Amazon ECR.
           image: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/orders-service:latest
           ports:
             - containerPort: 8003
-          # ---- COMUNICACIÓN INTER-SERVICIO ----
-          # En Kubernetes, un Service de tipo ClusterIP se resuelve por DNS
-          # usando su NOMBRE. Como todo está en el mismo namespace, basta:
-          #   http://<nombre-del-service>:<puerto>
-          # (forma completa: http://products-service.default.svc.cluster.local:8001)
+
           env:
             - name: PRODUCTS_SERVICE_URL
               value: "http://products-service:8001"
             - name: INVENTORY_SERVICE_URL
               value: "http://inventory-service:8002"
+
           livenessProbe:
             httpGet:
-              path: /health
+              path: /live
               port: 8003
             initialDelaySeconds: 5
             periodSeconds: 10
+
           readinessProbe:
             httpGet:
-              path: /health
+              path: /ready
               port: 8003
             initialDelaySeconds: 3
             periodSeconds: 5
+
           resources:
             requests:
               cpu: "50m"

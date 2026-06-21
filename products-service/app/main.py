@@ -10,6 +10,10 @@ Otros servicios (orders-service) lo consumen vía HTTP interno para conocer
 el precio y el nombre de un producto antes de crear un pedido.
 """
 from fastapi import FastAPI, HTTPException
+import time
+import psutil
+
+INICIO = time.time()   # momento en que arranco el proceso (para el uptime)
 
 app = FastAPI(
     title="Products Service",
@@ -25,18 +29,31 @@ PRODUCTS = {
     4: {"id": 4, "name": "Audífonos Bluetooth", "price": 24990},
 }
 
+@app.get("/live")
+def live():
+    """
+    Liveness: el proceso esta vivo y respondiendo. NO depende de nadie externo.
+    Devolvemos OK y desde hace cuantos segundos esta arriba (uptime).
+    """
+    return {"alive": True, "uptime_segundos": round(time.time() - INICIO, 1)}
+
+@app.get("/ready")
+def ready():
+    """Readiness: listo solo si NO esta saturado de memoria (uso real con psutil)."""
+    memoria_usada = psutil.virtual_memory().percent
+    if memoria_usada > 90:
+        raise HTTPException(status_code=503, detail={"ready": False, "memoria_%": memoria_usada})
+    return {"ready": True, "memoria_%": memoria_usada, "service": "products-service"}
 
 @app.get("/health")
 def health():
     """Endpoint de salud usado por las probes de Kubernetes y docker-compose."""
     return {"status": "ok", "service": "products-service"}
 
-
 @app.get("/products")
 def list_products():
     """Devuelve todo el catálogo."""
     return {"products": list(PRODUCTS.values())}
-
 
 @app.get("/products/{product_id}")
 def get_product(product_id: int):

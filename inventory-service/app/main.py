@@ -12,6 +12,10 @@ Es consumido por orders-service vía HTTP interno:
 """
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+import time
+import psutil
+
+INICIO = time.time()   # momento en que arranco el proceso (para el uptime)
 
 app = FastAPI(
     title="Inventory Service",
@@ -27,16 +31,30 @@ STOCK = {
     4: 40,
 }
 
-
 class ReserveRequest(BaseModel):
     """Cuerpo de la petición para reservar stock."""
     quantity: int = Field(gt=0, description="Cantidad de unidades a reservar")
 
+@app.get("/live")
+def live():
+    """
+    Liveness: el proceso esta vivo y respondiendo. NO depende de nadie externo.
+    Devolvemos OK y desde hace cuantos segundos esta arriba (uptime).
+    """
+    return {"alive": True, "uptime_segundos": round(time.time() - INICIO, 1)}
+
+
+@app.get("/ready")
+def ready():
+    """Readiness: listo solo si NO esta saturado de memoria (uso real con psutil)."""
+    memoria_usada = psutil.virtual_memory().percent
+    if memoria_usada > 90:
+        raise HTTPException(status_code=503, detail={"ready": False, "memoria_%": memoria_usada})
+    return {"ready": True, "memoria_%": memoria_usada, "service": "products-service"}
 
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "inventory-service"}
-
 
 @app.get("/inventory/{product_id}")
 def get_inventory(product_id: int):
@@ -44,7 +62,6 @@ def get_inventory(product_id: int):
     if product_id not in STOCK:
         raise HTTPException(status_code=404, detail=f"Producto {product_id} sin registro de stock")
     return {"product_id": product_id, "available": STOCK[product_id]}
-
 
 @app.post("/inventory/{product_id}/reserve")
 def reserve_inventory(product_id: int, body: ReserveRequest):

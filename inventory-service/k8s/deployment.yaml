@@ -16,22 +16,24 @@ spec:
     spec:
       containers:
         - name: inventory-service
-          # Reemplazar <ACCOUNT_ID> y <REGION> tras el push a Amazon ECR.
           image: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/inventory-service:latest
           ports:
             - containerPort: 8002
+
           livenessProbe:
             httpGet:
-              path: /health
+              path: /live
               port: 8002
             initialDelaySeconds: 5
             periodSeconds: 10
+
           readinessProbe:
             httpGet:
-              path: /health
+              path: /ready
               port: 8002
             initialDelaySeconds: 3
             periodSeconds: 5
+
           resources:
             requests:
               cpu: "50m"
