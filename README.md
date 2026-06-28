@@ -56,12 +56,16 @@ micro-servicios-k8s/
 ├── products-service/
 │   ├── app/main.py
 │   ├── requirements.txt
+│   ├── requirements-dev.txt    # dependencias de test (pytest, pytest-cov, …)
+│   ├── pytest.ini              # config de pytest + umbral de cobertura (70%)
+│   ├── tests/
+│   │   └── test_main.py        # tests unitarios
 │   ├── Dockerfile
 │   └── k8s/
 │       ├── deployment.yaml
 │       └── service.yaml
 ├── inventory-service/          # (misma estructura)
-└── orders-service/             # (misma estructura)
+└── orders-service/             # (misma estructura; tests con respx)
 ```
 
 ---
@@ -183,7 +187,53 @@ interno de Kubernetes** — el objetivo central del laboratorio. ✅
 
 ---
 
-## 6. Siguiente paso — CI/CD con GitHub Actions
+## 6. Tests unitarios y cobertura
+
+Cada microservicio incluye **tests unitarios** con `pytest` y medición de
+cobertura con `pytest-cov`. La configuración (`pytest.ini` de cada servicio)
+exige un mínimo de **70% de cobertura**: si baja de ahí, `pytest` falla.
+
+| Servicio            | Qué cubren los tests                                              | Cobertura |
+|---------------------|------------------------------------------------------------------|-----------|
+| `products-service`  | `/health`, `/products`, `/products/{id}` (200 y 404)             | 100%      |
+| `inventory-service` | consulta de stock y reserva (200, 404, 409 sin stock, 422)       | 100%      |
+| `orders-service`    | flujo de pedido completo + errores (404, 409, 503) usando `respx`| 100%      |
+
+> En `orders-service` los tests son **unitarios de verdad**: no levantan a
+> `products-service` ni a `inventory-service`. Las llamadas HTTP salientes se
+> simulan con [`respx`](https://lundberg.github.io/respx/), así que el test
+> verifica solo la lógica del orquestador.
+
+### Correr los tests de un servicio
+
+**Con Python local** (entra a la carpeta del servicio):
+
+```bash
+cd products-service
+pip install -r requirements.txt -r requirements-dev.txt
+pytest
+```
+
+`pytest` toma la configuración de `pytest.ini` automáticamente (mide cobertura
+sobre `app/` y aplica el umbral del 70%).
+
+**Con Docker** (misma imagen `python:3.12-slim` que usa el servicio, sin instalar
+nada en tu máquina):
+
+```bash
+docker run --rm -v "$PWD/products-service":/svc -w /svc python:3.12-slim \
+  bash -c "pip install -q -r requirements.txt -r requirements-dev.txt && pytest"
+```
+
+Repite cambiando `products-service` por `inventory-service` u `orders-service`.
+
+> El umbral del 70% está pensado para que un pipeline de CI lo use como
+> **compuerta de calidad**: `pytest` devuelve un código de salida distinto de
+> cero si la cobertura no se alcanza, lo que pone el job en rojo.
+
+---
+
+## 7. Siguiente paso — CI/CD con GitHub Actions
 
 La estructura ya está lista para un pipeline. Un workflow típico haría:
 
