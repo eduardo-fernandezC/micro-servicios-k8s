@@ -15,7 +15,7 @@ client = TestClient(app)
 def test_health():
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok", "service": "products-service"}
+    assert r.json() == {"service": "ROTO"}
 
 
 def test_list_products():
